@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Todo List</h1>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <form id="taskForm" class="mb-6">
+                    <div class="flex gap-2">
+                        <input type="text" id="taskInput" 
+                               class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+                               placeholder="Add a new task...">
+                        <button type="submit" 
+                                class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            Add
+                        </button>
+                    </div>
+                </form>
+
+                <div id="taskList" class="space-y-3">
+                    <!-- Tasks will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const userId = '{{ user_id }}';
+        
+        // Load tasks on page load
+        document.addEventListener('DOMContentLoaded', loadTasks);
+
+        // Add task form submission
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('taskInput');
+            const text = input.value.trim();
+            
+            if (text) {
+                await createTask(text);
+                input.value = '';
+                loadTasks();
+            }
+        });
+
+        async function loadTasks() {
+            const response = await fetch(`/api/tasks?user_id=${userId}`);
+            const tasks = await response.json();
+            
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            
+            tasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                taskList.appendChild(taskElement);
+            });
+        }
+
+        async function createTask(text) {
+            await fetch('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `text=${encodeURIComponent(text)}&user_id=${userId}`
+            });
+        }
+
+        async function toggleTask(taskId, completed) {
+            await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `user_id=${userId}&completed=${completed}`
+            });
+            loadTasks();
+        }
+
+        async function deleteTask(taskId) {
+            await fetch(`/api/tasks/${taskId}?user_id=${userId}`, {
+                method: 'DELETE'
+            });
+            loadTasks();
+        }
+
+        function createTaskElement(task) {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+            
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" 
+                           ${task.completed ? 'checked' : ''}
+                           onchange="toggleTask('${task.id}', this.checked)"
+                           class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                    <span class="${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}">
+                        ${task.text}
+                    </span>
+                </div>
+                <button onclick="deleteTask('${task.id}')"
+                        class="text-red-500 hover:text-red-700">
+                    Delete
+                </button>
+            `;
+            
+            return div;
+        }
+    </script>
+</body>
+</html> 
